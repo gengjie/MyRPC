@@ -1,0 +1,17 @@
+{
+    "api/service/register" : {
+        "POST" : {
+            "register" : "service_ip|service_port|service_name|method_name"
+        }
+    },
+    "api/service/unregister" : {
+        "DELETE" : {
+            "unregister" : "service_ip|service_port|service_name|method_name"
+        }
+    },
+    "api/service/lookup" : {
+        "GET" : {
+            "lookup" : "service_name|method_name"
+        }
+    }
+}
