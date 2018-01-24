@@ -1,7 +1,7 @@
 #!/usr/bin/python3.5
 
-def publish():
+def publish(args):
     pass
 
-def lookup():
+def lookup(args):
     pass
