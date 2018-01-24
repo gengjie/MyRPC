@@ -1,4 +1,10 @@
 #!/usr/bin/python3.5
+from registry_router import RegistryRouter
+
+import sys
+sys.path.append('..')
+
+from rpc_core.transport.rpc_acceptor import Bio_Acceptor
 
 class MethodMetadata(object):
 
@@ -24,7 +30,7 @@ class ServiceMetadata(object):
 
     @property
     def service_name(self):
-        return self.service_name
+        return self.service_name  
 
     @service_name.setter
     def service_name(self, service_name):
@@ -36,11 +42,14 @@ class ServiceMetadata(object):
 
 class RegistryCenter(object):
 
-    def __init__(self):
+    def __init__(self, tcp_port):
         self.registered_services = {}
+        RegistryRouter.init_routers()
+        self.acceptor = Bio_Acceptor(tcp_port)
+        self.acceptor.dispatch_router = RegistryRouter.dispatch
 
     def serve_forever(self):
-        pass
+        self.acceptor.serve_forever()
 
     def register_service(self):
         pass
@@ -71,3 +80,14 @@ class RegistryCenter(object):
                 return service_url
         else:
             raise RuntimeError('Oops! An error occured in service registry!')
+
+
+def main():
+    print("dfsdfasdfasdf")
+    registry_center = RegistryCenter(9999)
+    import time
+    time.sleep(2)
+    registry_center.serve_forever()
+
+if __name__=='__main__':
+    main()

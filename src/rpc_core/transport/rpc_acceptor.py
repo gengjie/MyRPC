@@ -1,11 +1,11 @@
 #! /usr/bin/python3.5
-import SocketServer
+import socketserver
 
 class Bio_Acceptor(object):
 
     BUFFER_SIZE = 1024
 
-    class MyRequestHandler(SocketServer.BaseRequestHandler):
+    class MyRequestHandler(socketserver.BaseRequestHandler):
         
         def handle(self):
             while True:
@@ -27,33 +27,38 @@ class Bio_Acceptor(object):
 
 
     def __init__(self, port):
-        self.tcp_server = SocketServer.ThreadingTCPServer(('localhost', port), \
-            RequestHandlerClass=Bio_Acceptor.MyRequestHandler)
+        self._dispatch_router = None
+        self.port = port
+        self.tcp_server = None
+        self._payload_encoder = None
+        self._payload_decoder = None
 
     @property
     def payload_decoder(self):
-        return self.payload_decoder
+        return self._payload_decoder
 
     @payload_decoder.setter
     def payload_decoder(self, payload_decoder):
-        self.payload_decoder = payload_decoder
+        self._payload_decoder = payload_decoder
 
     @property
     def payload_encoder(self):
-        return self.payload_encoder
+        return self._payload_encoder
 
     @payload_encoder.setter
     def payload_encoder(self, payload_encoder):
-        self.payload_encoder = payload_encoder
+        self._payload_encoder = payload_encoder
 
     @property
     def dispatch_router(self):
-        return self.dispatch_router
+        return self._dispatch_router
 
     @dispatch_router.setter
     def dispatch_router(self, dispatch_router):
-        self.dispatch_router = dispatch_router
+        self._dispatch_router = dispatch_router
 
     def serve_forever(self):
+        self.tcp_server = socketserver.ThreadingTCPServer(('localhost', self.port), \
+            RequestHandlerClass=Bio_Acceptor.MyRequestHandler)
         self.tcp_server.serve_forever()
 
