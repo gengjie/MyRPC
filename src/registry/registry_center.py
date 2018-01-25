@@ -41,6 +41,19 @@ class ServiceMetadata(object):
 
 
 class RegistryCenter(object):
+    '''
+    All services registered in registry center should be like:
+    {
+        "accout_service" : {
+            "deposit" : ["tcp://192.168.0.1:8888", "tcp://192.168.0.2:7777"],
+            "withdraw" : ["tcp://192.168.0.3:7666", "amqp://192.168.0.4:9090"]
+        },
+        "user_service" : {
+            "register" : ["http://192.168.0.5:8080"],
+            "unregister" : []
+        }
+    }
+    '''
 
     def __init__(self, tcp_port):
         self.registered_services = {}
@@ -83,7 +96,6 @@ class RegistryCenter(object):
 
 
 def main():
-    print("dfsdfasdfasdf")
     registry_center = RegistryCenter(9999)
     import time
     time.sleep(2)
