@@ -1,10 +1,14 @@
 #!/usr/bin/python3.5
 from registry_router import RegistryRouter
+from registry_handler import RemoteServiceHandler
 
 import sys
 sys.path.append('..')
 
 from rpc_core.transport.rpc_acceptor import Bio_Acceptor
+
+from rpc_core.codec.rpc_decoder import JSON_Decoder
+from rpc_core.codec.rpc_encoder import JSON_Encoder
 
 class MethodMetadata(object):
 
@@ -39,32 +43,15 @@ class ServiceMetadata(object):
     def append_method(self, method_metadata):
         self.method_list.append(method_metadata)
 
+class ServiceRepository:
 
-class RegistryCenter(object):
-    '''
-    All services registered in registry center should be like:
-    {
-        "accout_service" : {
-            "deposit" : ["tcp://192.168.0.1:8888", "tcp://192.168.0.2:7777"],
-            "withdraw" : ["tcp://192.168.0.3:7666", "amqp://192.168.0.4:9090"]
-        },
-        "user_service" : {
-            "register" : ["http://192.168.0.5:8080"],
-            "unregister" : []
-        }
-    }
-    '''
-
-    def __init__(self, tcp_port):
+    def __init__(self):
         self.registered_services = {}
-        RegistryRouter.init_routers()
-        self.acceptor = Bio_Acceptor(tcp_port)
-        self.acceptor.dispatch_router = RegistryRouter.dispatch
 
-    def serve_forever(self):
-        self.acceptor.serve_forever()
+    def add(self):
+        pass
 
-    def register_service(self):
+    def remove(self):
         pass
 
     def lookup(self, service_name, method_signature):
@@ -93,6 +80,33 @@ class RegistryCenter(object):
                 return service_url
         else:
             raise RuntimeError('Oops! An error occured in service registry!')
+
+service_repo = ServiceRepository()
+
+class RegistryCenter(object):
+    '''
+    All services registered in registry center should be like:
+    {
+        "accout_service" : {
+            "deposit" : ["tcp://192.168.0.1:8888", "tcp://192.168.0.2:7777"],
+            "withdraw" : ["tcp://192.168.0.3:7666", "amqp://192.168.0.4:9090"]
+        },
+        "user_service" : {
+            "register" : ["http://192.168.0.5:8080"],
+            "unregister" : []
+        }
+    }
+    '''
+
+    def __init__(self, tcp_port):
+        RegistryRouter.init_routers()
+        self.acceptor = Bio_Acceptor(tcp_port)
+        self.acceptor.payload_decoder = JSON_Decoder
+        self.acceptor.payload_encoder = JSON_Encoder
+        self.acceptor.dispatch_router = RemoteServiceHandler.handle_request_data
+
+    def serve_forever(self):
+        self.acceptor.serve_forever()
 
 
 def main():
