@@ -1,13 +1,13 @@
 #! /usr/bin/python
 import threading
 import inspect
+
 import sys
 sys.path.append('..')
 
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 from rpc_core.codec.rpc_decoder import JSON_Decoder
 from rpc_core.transport.rpc_connector import Bio_Connector
-from rpc_core.transport.rpc_acceptor import Bio_Acceptor
 
 class ServiceContainer:
     '''
