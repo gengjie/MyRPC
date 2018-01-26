@@ -16,14 +16,14 @@ class Bio_Acceptor(object):
             payload = self.rfile.readline().strip()
             payload = self.server.connector.payload_decoder.decode(payload)
             payload['body']['service_ip'] = self.client_address[0]
-            send_payload = self.server.connector.dispatch_router(payload)
-            send_payload = self.server.connector.payload_encoder.encode_data(send_payload)
-            conn.sendall(send_payload)
+            reply = self.server.connector.request_handler(payload)
+            reply = self.server.connector.payload_encoder.encode_data(reply)
+            conn.sendall(reply)
             conn.close()
 
 
     def __init__(self, port):
-        self._dispatch_router = None
+        self._request_handler = None
         self.port = port
         self.tcp_server = None
         self._payload_encoder = None
@@ -46,12 +46,12 @@ class Bio_Acceptor(object):
         self._payload_encoder = payload_encoder
 
     @property
-    def dispatch_router(self):
-        return self._dispatch_router
+    def request_handler(self):
+        return self._request_handler
 
-    @dispatch_router.setter
-    def dispatch_router(self, dispatch_router):
-        self._dispatch_router = dispatch_router
+    @request_handler.setter
+    def request_handler(self, request_handler):
+        self._request_handler = request_handler
 
     def set_defaults(self):
         self.payload_decoder = JSON_Decoder

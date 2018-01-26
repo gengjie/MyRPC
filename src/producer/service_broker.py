@@ -1,13 +1,17 @@
 #! /usr/bin/python
 import threading
 import inspect
+
 import sys
 sys.path.append('..')
 
+from rpc_core.exceptions import IncorrectSignature
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 from rpc_core.codec.rpc_decoder import JSON_Decoder
 from rpc_core.transport.rpc_connector import Bio_Connector
 from rpc_core.transport.rpc_acceptor import Bio_Acceptor
+
+from rpc_core.exceptions import serialize
 
 class ServiceContainer:
     '''
@@ -80,12 +84,13 @@ class ServiceContainer:
         if self.service_instances.has_key(service_name):
             si_info = self.service_instances.get(service_name)
             assert isinstance(si_info, dict)
-            for _, si_members in si_info:
+            service_instance = None
+            for service_instance, si_members in si_info:
                 break
             assert isinstance(si_members, dict)
             callback = si_members.get(func_name)
             if not callback or not callable(callback):
-                return callback
+                return service_instance, callback
             raise TypeError
         else:
             raise RuntimeError('No service instance found for %s.' % service_name)
@@ -150,6 +155,7 @@ class ServiceBroker:
     def  __expose_service(self):
         self.acceptor = Bio_Acceptor(self.broker_port)
         self.acceptor.set_defaults()
+        self.acceptor.request_handler = _ClientRequestHandler.handle_request_data
         self.acceptor.serve_forever()
 
 
@@ -162,9 +168,32 @@ class _ClientRequestHandler(object):
         payload = {
             service_name : 'foo_service',
             method_name : 'bar_method',
-            method_args : {}
+            call_args : {}
         }
         '''
+        try:
+            service_name = payload['service_name']
+            method_name = payload['method_name']
+            call_args = payload['call_args']
+            service_instance, callback = service_container.lookup_serv(\
+                service_name, method_name)
+            ret = callback(service_instance, call_args)
+        except BaseException as exc:
+            return _ClientRequestHandler.__reply_call_failure(exc)
+
+    @staticmethod
+    def __check_signature(service_instance, fn, args, kwargs):
+        try:
+            inspect.getcallargs(fn, service_instance, *args, **kwargs)
+        except TypeError as exc:
+            raise IncorrectSignature(str(exc))
+
+    @staticmethod
+    def __reply_call_failure(exc):
+        return serialize(exc)
+
+    @staticmethod
+    def __reply_call_result():
         pass
 
 

@@ -7,6 +7,9 @@ sys.path.append('..')
 
 from rpc_core.transport.rpc_acceptor import Bio_Acceptor
 
+from rpc_core.codec.rpc_decoder import JSON_Decoder
+from rpc_core.codec.rpc_encoder import JSON_Encoder
+
 class MethodMetadata(object):
 
     def __init__(self, method_name, method_args, return_type):
@@ -99,7 +102,7 @@ class RegistryCenter(object):
         RegistryRouter.init_routers()
         self.acceptor = Bio_Acceptor(tcp_port)
         self.acceptor.set_defaults()
-        self.acceptor.dispatch_router = RemoteServiceHandler.handle_request_data
+        self.acceptor.request_handler = RemoteServiceHandler.handle_request_data
 
     def serve_forever(self):
         self.acceptor.serve_forever()
