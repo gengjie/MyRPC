@@ -26,10 +26,6 @@ class Bio_Connector(object):
                 encoding='utf8')
         accept_data = rfile.readline()
         assert issubclass(decoder, BaseDecoder)
-<<<<<<< HEAD
-=======
-        print ('ad', accept_data)
->>>>>>> 6330275f3606fc3811bd0049f6af19ea4060ef4c
         return decoder.decode(accept_data)
 
     def __exit__(self, exc_type, exc_value, exc_tb):

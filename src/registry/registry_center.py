@@ -102,11 +102,7 @@ class RegistryCenter(object):
         RegistryRouter.init_routers()
         self.acceptor = Bio_Acceptor(tcp_port)
         self.acceptor.set_defaults()
-<<<<<<< HEAD
         self.acceptor.request_handler = RemoteServiceHandler.handle_request_data
-=======
-        self.acceptor.dispatch_router = RemoteServiceHandler.handle_request_data
->>>>>>> 6330275f3606fc3811bd0049f6af19ea4060ef4c
 
     def serve_forever(self):
         self.acceptor.serve_forever()

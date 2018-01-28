@@ -5,6 +5,7 @@ import inspect
 import sys
 sys.path.append('..')
 
+from rpc_core.utils import make_request
 from rpc_core.exceptions import IncorrectSignature
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 from rpc_core.codec.rpc_decoder import JSON_Decoder
@@ -12,6 +13,7 @@ from rpc_core.transport.rpc_connector import Bio_Connector
 from rpc_core.transport.rpc_acceptor import Bio_Acceptor
 
 from rpc_core.exceptions import serialize
+from rpc_core.exceptions import MethodNotFound
 
 class ServiceContainer:
     '''
@@ -41,7 +43,7 @@ class ServiceContainer:
             if si == service_instance:
                 si_members = si[service_instance]
                 assert isinstance(si_members, dict)
-                if si_members.has_key(func.__name__):
+                if func.__name__ in si_members:
                     self.lock.release()
                     raise RuntimeError('duplicated function name - %s \
                             for service name - %s'\
@@ -61,13 +63,13 @@ class ServiceContainer:
 
     def del_service(self, service_name, func_name):
         self.lock.acquire()
-        if self.service_instances.has_key(service_name):
+        if service_name in self.service_instances:
             si_info = self.service_instances.get(service_name)
             assert isinstance(si_info, dict)
             si = si_info.keys()[0]
             si_members = si_info.get(si)
             assert isinstance(si_members, dict)
-            if si_members.has_key(func_name):
+            if func_name in si_members:
                 si_members.pop(func_name)
                 if not si_members.items():
                     self.service_instances.pop(service_name)
@@ -81,15 +83,17 @@ class ServiceContainer:
         self.lock.release()
 
     def lookup_serv(self, service_name, func_name):
-        if self.service_instances.has_key(service_name):
+        if service_name in self.service_instances:
             si_info = self.service_instances.get(service_name)
             assert isinstance(si_info, dict)
             service_instance = None
-            for service_instance, si_members in si_info:
+            for service_instance, si_members in si_info.items():
                 break
             assert isinstance(si_members, dict)
             callback = si_members.get(func_name)
-            if not callback or not callable(callback):
+            if callback is None:
+                raise MethodNotFound()
+            elif not callable(callback):
                 return service_instance, callback
             raise TypeError
         else:
@@ -125,32 +129,28 @@ class ServiceBroker:
         assert inspect.isclass(service_cls)
         service_name = service_cls.__dict__.get('name')
         service_instance = service_cls()
+        print ('----->service_instance:\t', service_instance)
+        print (service_instance == None)
+        print (method)
         service_container.add_service(service_name, service_instance, method)
         self.__register(service_name, method.__name__)
         self.__expose_service()
 
     def __register(self, service_name, method_name):
-        registry_info = self.registry_url.split("://")
-        proto = registry_info[0]
-        registry_ip, registry_port = registry_info[1].split(":")
-        if proto == 'tcp':
-            with Bio_Connector(registry_ip, registry_port) as connector:
-                data = {
-                    "header" : {
-                        "routing_key" : "api/service/register",
-                        "request_method" : "POST"
-                    },
-                    "body" : {
-                        "service_port" : self.broker_port,
-                        "service_name" : service_name,
-                        "method_name" : method_name
-                    }
-                }
-                connector.send_data(JSON_Encoder, data)
-                rst = connector.recv_data(JSON_Decoder)
-                print (rst)
-        else:
-            raise "Not supported!"
+        '''
+        rst = {
+            status : 0 | -1,
+            message : "register to xxx successfully..."
+        }
+        '''
+        routing_key = "api/service/register"
+        body = {
+            "service_port" : self.broker_port,
+            "service_name" : service_name,
+            "method_name" : method_name
+        }
+        rst = self.__post_request(routing_key, body)
+
 
     def  __expose_service(self):
         self.acceptor = Bio_Acceptor(self.broker_port)
@@ -158,6 +158,26 @@ class ServiceBroker:
         self.acceptor.request_handler = _ClientRequestHandler.handle_request_data
         self.acceptor.serve_forever()
 
+    def __unregister_service(self, service_name, method_name):
+        routing_key = "api/service/unregister"
+        body = {
+            "service_name" : service_name,
+            "method_name" : method_name
+        }
+        rst = self.__post_request(routing_key, body)
+
+    def __post_request(self, routing_key, body):
+        assert isinstance(body, dict)
+        registry_info = self.registry_url.split("://")
+        endpoint = registry_info[0], (registry_info[1].split(":"))
+        make_request(endpoint, "POST", routing_key, body)
+
+    def __handle_reply_msg(self, reply_msg):
+        assert isinstance(reply_msg, dict)
+        status = reply_msg['status']
+        message = reply_msg['result']
+        print (message)
+        return status >= 0
 
 class _ClientRequestHandler(object):
 
@@ -168,16 +188,25 @@ class _ClientRequestHandler(object):
         payload = {
             service_name : 'foo_service',
             method_name : 'bar_method',
-            call_args : {}
+            call_args : {
+                args : [],
+                kwargs : {}
+            }
         }
         '''
         try:
+            print ('payload:', payload)
             service_name = payload['service_name']
             method_name = payload['method_name']
             call_args = payload['call_args']
             service_instance, callback = service_container.lookup_serv(\
                 service_name, method_name)
-            ret = callback(service_instance, call_args)
+            print ('-' * 10)
+            print (service_instance, callback)
+            args = call_args['args']
+            kwargs = call_args['kwargs']
+            return _ClientRequestHandler.__reply_call_result(callback, \
+                    service_instance, args, kwargs)
         except BaseException as exc:
             return _ClientRequestHandler.__reply_call_failure(exc)
 
@@ -193,8 +222,8 @@ class _ClientRequestHandler(object):
         return serialize(exc)
 
     @staticmethod
-    def __reply_call_result():
-        pass
+    def __reply_call_result(fn, instance, *args, **kwargs):
+        return fn(instance, args, kwargs)
 
 
 

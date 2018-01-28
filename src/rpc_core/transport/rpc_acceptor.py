@@ -4,6 +4,8 @@ import socketserver
 from rpc_core.codec.rpc_decoder import JSON_Decoder
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 
+from rpc_core.exceptions import serialize
+
 class Bio_Acceptor(object):
     "https://docs.python.org/2/library/socketserver.html"
 
@@ -13,13 +15,19 @@ class Bio_Acceptor(object):
         
         def handle(self):
             conn = self.request
-            payload = self.rfile.readline().strip()
-            payload = self.server.connector.payload_decoder.decode(payload)
-            payload['body']['service_ip'] = self.client_address[0]
-            reply = self.server.connector.request_handler(payload)
-            reply = self.server.connector.payload_encoder.encode_data(reply)
-            conn.sendall(reply)
-            conn.close()
+            try:
+                payload = self.rfile.readline().strip()
+                payload = self.server.connector.payload_decoder.decode(payload)
+                # payload['body']['service_ip'] = self.client_address[0]
+                reply = self.server.connector.request_handler(payload)
+                reply = self.server.connector.payload_encoder.encode_data(reply)
+                conn.sendall(reply)
+            except BaseException as bexcp:
+                reply = serialize(bexcp)
+                reply = self.server.connector.payload_encoder.encode_data(reply)
+                conn.sendall(reply)
+            finally:
+                conn.close()
 
 
     def __init__(self, port):

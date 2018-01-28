@@ -2,7 +2,10 @@
 
 def register(args):
     print('enter register...')
-    return {'code' : 0, 'message' : 'fuck!'}
+    print (args)
+    return {'status' : 0, 'result' : 'fuck!'}
 
 def lookup(args):
-    pass
+    print ('enter lookup')
+    print (args)
+    return {'status' : 0, 'result' : 'tcp://localhost:7777'}
