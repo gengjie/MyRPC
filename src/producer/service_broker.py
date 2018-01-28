@@ -130,27 +130,14 @@ class ServiceBroker:
         self.__expose_service()
 
     def __register(self, service_name, method_name):
-        registry_info = self.registry_url.split("://")
-        proto = registry_info[0]
-        registry_ip, registry_port = registry_info[1].split(":")
-        if proto == 'tcp':
-            with Bio_Connector(registry_ip, registry_port) as connector:
-                data = {
-                    "header" : {
-                        "routing_key" : "api/service/register",
-                        "request_method" : "POST"
-                    },
-                    "body" : {
-                        "service_port" : self.broker_port,
-                        "service_name" : service_name,
-                        "method_name" : method_name
-                    }
+        routing_key = "api/service/register"
+        body = {
+                    "service_port" : self.broker_port,
+                    "service_name" : service_name,
+                    "method_name" : method_name
                 }
-                connector.send_data(JSON_Encoder, data)
-                rst = connector.recv_data(JSON_Decoder)
-                print (rst)
-        else:
-            raise "Not supported!"
+        rst = self.__post_request(routing_key, body)
+
 
     def  __expose_service(self):
         self.acceptor = Bio_Acceptor(self.broker_port)
@@ -158,6 +145,34 @@ class ServiceBroker:
         self.acceptor.request_handler = _ClientRequestHandler.handle_request_data
         self.acceptor.serve_forever()
 
+    def __unregister_service(self, service_name, method_name):
+        routing_key = "api/service/unregister"
+        body = {
+                    "service_name" : service_name,
+                    "method_name" : method_name
+                }
+        rst = self.__post_request(routing_key, body)
+
+    def __post_request(self, routing_key, body):
+        assert isinstance(body, dict)
+        registry_info = self.registry_url.split("://")
+        proto = registry_info[0]
+        registry_ip, registry_port = registry_info[1].split(":")
+        if proto == 'tcp':
+            with Bio_Connector(registry_ip, registry_port) as connector:
+                data = {
+                    "header" : {
+                        "routing_key" : routing_key,
+                        "request_method" : "POST"
+                    },
+                    "body" : body
+                }
+                connector.send_data(JSON_Encoder, data)
+                rst = connector.recv_data(JSON_Decoder)
+                print (rst)
+                return rst
+        else:
+            raise "Not supported!"
 
 class _ClientRequestHandler(object):
 
@@ -168,7 +183,10 @@ class _ClientRequestHandler(object):
         payload = {
             service_name : 'foo_service',
             method_name : 'bar_method',
-            call_args : {}
+            call_args : {
+                args : {},
+                kwds : {}
+            }
         }
         '''
         try:
