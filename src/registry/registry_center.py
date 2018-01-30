@@ -2,6 +2,7 @@
 from registry_router import RegistryRouter
 from registry_handler import RemoteServiceHandler
 
+import threading
 import sys
 sys.path.append('..')
 
@@ -10,80 +11,12 @@ from rpc_core.transport.rpc_acceptor import Bio_Acceptor
 from rpc_core.codec.rpc_decoder import JSON_Decoder
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 
-class MethodMetadata(object):
-
-    def __init__(self, method_name, method_args, return_type):
-        self.method_name = method_name
-        self.method_args = method_args
-        self.return_type = return_type
-
-    @property
-    def method_signature(self):
-        return self.method_signature
-
-    @method_signature.setter
-    def method_signature(self, method_signature):
-        self.method_signature = method_signature
-
-class ServiceMetadata(object):
-
-    def __init__(self, service_ip, service_port):
-        self.service_ip = service_ip
-        self.service_port = service_port
-        self.method_list = []
-
-    @property
-    def service_name(self):
-        return self.service_name  
-
-    @service_name.setter
-    def service_name(self, service_name):
-        self.service_name = service_name
-
-    def append_method(self, method_metadata):
-        self.method_list.append(method_metadata)
+from rpc_core.exceptions import ExistedMethod
+from rpc_core.exceptions import NotExistedService
+from rpc_core.exceptions import NotExistedMethod
+from rpc_core.exceptions import ServiceRegistryException
 
 class ServiceRepository:
-
-    def __init__(self):
-        self.registered_services = {}
-
-    def add(self):
-        pass
-
-    def remove(self):
-        pass
-
-    def lookup(self, service_name, method_signature):
-        services = self.registered_services.get(service_name)
-        if not service_name:
-            raise RuntimeError('No service instance - %s registered' % service_name)
-        elif isinstance(services, list):
-            if len(services) > 1:
-                # TODO load-balance strategy should be implemented
-                pass
-            else:
-                service = services[0]
-                assert isinstance(service, ServiceMetadata)
-                methods = service.method_list
-                if not methods:
-                    raise RuntimeError('No method registered for this service - %s.'\
-                        % service_name)
-                assert isinstance(methods, list)
-                method_name = ''
-                for method in methods:
-                    assert isinstance(method, MethodMetadata)
-                    if method.method_signature == method_signature:
-                        method_name = method.method_name
-                        break
-                service_url = 'tcp://%s:%d/%s' % (service.service_ip, service.service_port, method_name)
-                return service_url
-        else:
-            raise RuntimeError('Oops! An error occured in service registry!')
-
-service_repo = ServiceRepository()
-
-class RegistryCenter(object):
     '''
     All services registered in registry center should be like:
     {
@@ -97,6 +30,72 @@ class RegistryCenter(object):
         }
     }
     '''
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.registered_services = {}
+
+    def add(self, service_name, method_name, service_uri):
+        self.lock.acquire()
+        if service_name in self.registered_services:
+            service_info = self.registered_services.get(service_name)
+            assert isinstance(service_info, dict)
+            if method_name in service_info:
+                service_uri_list = service_info.get(method_name)
+                assert isinstance(service_uri_list, list)
+                if service_uri not in service_uri_list:
+                    service_uri_list.append(service_uri)
+                else:
+                    self.lock.release()
+                    raise ExistedMethod(method_name)
+            else:
+                service_info[method_name] = [service_uri]
+        else:
+            self.registered_services[service_name] = {
+                method_name : [service_uri]
+            }
+        self.lock.release()
+
+    def remove(self, service_name, method_name, service_uri):
+        self.lock.acquire()
+        if service_name in self.registered_services:
+            service_info = self.registered_services.get(service_name)
+            assert isinstance(service_info, dict)
+            if method_name in service_info:
+                service_uri_list = service_info.get(method_name)
+                assert isinstance(service_uri_list, list)
+                if service_uri not in service_uri_list:
+                    self.lock.release()
+                    raise ServiceRegistryException()
+                else:
+                    service_uri_list.remove('%s/%s/%s' % (service_uri, \
+                        service_name, method_name))
+            else:
+                self.lock.release()
+                raise NotExistedMethod(service_name, method_name)
+        else:
+            self.lock.release()
+            raise NotExistedService(service_name)
+        self.lock.release()
+
+    def lookup(self, service_name, method_name):
+        service_info = self.registered_services.get(service_name)
+        if not service_info:
+            raise NotExistedService(service_name)
+        method_info = service_info.get(method_name)
+        if not method_info:
+            raise ServiceRegistryException()
+        else:
+            if len(method_info) > 1:
+                # TODO load-balance strategy should be implemented
+                pass
+            else:
+                service_uri = method_info[0]
+                return service_uri
+
+service_repo = ServiceRepository()
+
+class RegistryCenter(object):
 
     def __init__(self, tcp_port):
         RegistryRouter.init_routers()

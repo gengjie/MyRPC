@@ -1,5 +1,9 @@
 #! /usr/bin/python3.5
 import json
+import platform
+import socket
+import fcntl
+import struct
 
 from rpc_core.exceptions import BadRequest
 from rpc_core.codec.rpc_encoder import JSON_Encoder
@@ -53,7 +57,7 @@ def make_request(endpoint, method, routing_key, body):
         },
         "body" : body
     }
-    return  base_request(endpoint, data)
+    return base_request(endpoint, data)
 
 def rpc_call_request(endpoint, service_name, method_name, \
                         args, kwargs):
@@ -66,3 +70,29 @@ def rpc_call_request(endpoint, service_name, method_name, \
         }
     }
     return base_request(endpoint, data)
+
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    ifname = ifname.encode("utf-8")
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915, # SIOCGIFADDR
+        struct.pack('256s', bytes(ifname[:15]))
+    )[20:24])
+
+def get_host_ip():
+    # this function used to retrive the local ip address for
+    # windows and linux platform
+    os_type = platform.system()
+    if os_type == "Windows":
+        return socket.gethostbyname(socket.gethostname())
+    elif os_type == "Linux":
+        return get_ip_address('eth0')
+    else:
+        raise RuntimeError("Not supported!")
+
+def handle_result(result):
+    if result['status'] == 0:
+        return True
+    elif result['status'] < 0:
+        return False

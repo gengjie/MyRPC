@@ -7,6 +7,8 @@ import sys
 sys.path.append('..')
 
 from rpc_core.utils import make_request
+from rpc_core.utils import get_host_ip
+from rpc_core.utils import handle_result
 from rpc_core.exceptions import IncorrectSignature
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 from rpc_core.codec.rpc_decoder import JSON_Decoder
@@ -151,12 +153,19 @@ class ServiceBroker:
         '''
         routing_key = "api/service/register"
         body = {
+            "service_ip" : get_host_ip(),
             "service_port" : self.broker_port,
             "service_name" : service_name,
             "method_name" : method_name
         }
         rst = self.__post_request(routing_key, body)
-        print ('register service - %s into registry center...' % service_name)
+        if handle_result(rst):
+            print ('register service - %s into registry center success...' % service_name)
+        else:
+            service_container.del_service(service_name, method_name)
+            print ('register service - %s into registry center failure...' % service_name)
+            raise rst['result']
+        
 
 
     def  __expose_service(self):
@@ -179,7 +188,7 @@ class ServiceBroker:
         assert isinstance(body, dict)
         registry_info = self.registry_url.split("://")
         endpoint = registry_info[0], (registry_info[1].split(":"))
-        make_request(endpoint, "POST", routing_key, body)
+        return make_request(endpoint, "POST", routing_key, body)
 
     def __handle_reply_msg(self, reply_msg):
         assert isinstance(reply_msg, dict)
@@ -231,30 +240,3 @@ class _ClientRequestHandler(object):
     @staticmethod
     def __reply_call_result(fn, instance, *args, **kwargs):
         return fn(instance, *args, **kwargs)
-
-
-
-class Student:
-
-    def __init__(self, name, age, desc):
-        self.name = name
-        self.age = age
-        self.desc = desc
-
-
-class HelloService:
-    name = "hello_service"
-
-    def say_hello(self, _s, _k):
-        print (_k)
-        ret = []
-        ret.append(_s)
-        ret.append(_k)
-        stu = Student(_s, _k, "oh shit!!!")
-        # return "Hello, " + _s + " " + str(_k)
-        return stu
-
-
-if __name__ == '__main__':
-    service_broker = ServiceBroker("tcp://localhost:9999", 7777)
-    service_broker.publish(HelloService, HelloService.say_hello)

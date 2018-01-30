@@ -5,6 +5,7 @@ from rpc_core.codec.rpc_decoder import JSON_Decoder
 from rpc_core.codec.rpc_encoder import JSON_Encoder
 
 from rpc_core.exceptions import serialize
+from rpc_core.utils import get_host_ip
 
 class Bio_Acceptor(object):
     "https://docs.python.org/2/library/socketserver.html"
@@ -12,13 +13,19 @@ class Bio_Acceptor(object):
     BUFFER_SIZE = 1024
 
     class MyRequestHandler(socketserver.StreamRequestHandler):
+
+        def __set_src_ip(self, payload):
+            assert isinstance(payload, dict)
+            if 'body' in payload:
+                payload['body']['source_ip'] = self.client_address[0]
+            else:
+                payload['source_ip'] = self.client_address[0]
         
         def handle(self):
             conn = self.request
             try:
                 payload = self.rfile.readline().strip()
                 payload = self.server.connector.payload_decoder.decode(payload)
-                # payload['body']['service_ip'] = self.client_address[0]
                 reply = self.server.connector.request_handler(payload)
                 reply = self.server.connector.payload_encoder.encode_data(reply)
                 conn.sendall(reply)
@@ -66,7 +73,7 @@ class Bio_Acceptor(object):
         self.payload_encoder = JSON_Encoder
 
     def serve_forever(self):
-        self.tcp_server = socketserver.ThreadingTCPServer(('localhost', self.port), \
+        self.tcp_server = socketserver.ThreadingTCPServer((get_host_ip(), self.port), \
             RequestHandlerClass=Bio_Acceptor.MyRequestHandler)
         self.tcp_server.connector = self
         self.tcp_server.serve_forever()

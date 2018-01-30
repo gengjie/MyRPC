@@ -42,7 +42,6 @@ class MethodProxy(object):
         self.method_name = None
         self.broker_endpoint = None
         self.resolve_registry()
-        print (remote_method_uri)
 
     def resolve_registry(self):
         registry_info = self.remote_method_uri.split("://")
@@ -81,6 +80,7 @@ class MethodProxy(object):
         
     def __resolve_remote_broker(self, service_broker_uri):
         service_broker_info = service_broker_uri.split('://')
+        print ('service_broker_info:\t', service_broker_info)
         proto, (broker_ip, broker_port) = service_broker_info[0], \
                 service_broker_info[1].split(':')
         self.broker_endpoint = (proto, (broker_ip, broker_port))
@@ -89,12 +89,3 @@ class MethodProxy(object):
     def __call__(self, *args, **kwargs):
         return rpc_call_request(self.broker_endpoint, self.service_name, \
                 self.method_name, args, kwargs)
-
-import datetime
-
-rpc = RpcProxy(config={"registry_uri":"tcp://localhost:9999"})
-
-start = datetime.datetime.now()
-print (rpc.hello_service.say_hello('shit', 8))
-end = datetime.datetime.now()
-print (end-start)

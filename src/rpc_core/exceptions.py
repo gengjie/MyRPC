@@ -117,6 +117,33 @@ class UnknownService(Exception):
     def __str__(self):
         return "Unknown service `{}`".format(self._service_name)
 
+class NotExistedService(Exception):
+    def __init__(self, service_name):
+        self._service_name = service_name
+        super(NotExistedService, self).__init__(service_name)
+
+    def __str__(self):
+        return "Not existed service `{}`".format(self._service_name)
+
+
+class ExistedMethod(Exception):
+    def __init__(self, method_name):
+        self._method_name = method_name
+        super(ExistedMethod, self).__init__(method_name)
+
+    def __str__(self):
+        return "Existed method `{}`".format(self._method_name)
+
+class NotExistedMethod(Exception):
+    def __init__(self, service_name, method_name):
+        self._service_name = service_name
+        self._method_name = method_name
+        super(NotExistedMethod, self).__init__(method_name)
+
+    def __str__(self):
+        return "Not existed method `{}` for service `{}`".format(\
+            self._method_name, self._service_name)
+
 
 class UnserializableValueError(Exception):
     def __init__(self, value):
@@ -128,3 +155,14 @@ class UnserializableValueError(Exception):
 
     def __str__(self):
         return "Unserializable value: `{}`".format(self.repr_value)
+
+class ServiceRegistryException(Exception):
+    
+    def __init__(self, desc=''):
+        self.desc = desc
+    
+    def __str__(self):
+        if self.desc:
+            return self.desc
+        return "An error occured in Service Registry."
+

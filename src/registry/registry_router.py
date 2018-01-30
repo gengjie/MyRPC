@@ -21,7 +21,7 @@ class RegistryRouter(object):
             raise RuntimeError('An error ocurred when parsing router-rule files.')
 
     @staticmethod
-    def dispatch(routing_key, method="GET", args=None):
+    def dispatch(routing_key, method="GET", **kwargs):
         '''dispatch the request according to routing key and requet method'''
         if not RegistryRouter.router_rules:
             raise RuntimeError('Router rules have not been initialized yet!')
@@ -42,12 +42,13 @@ class RegistryRouter(object):
             break
         assert isinstance(required_args, str)
         required_args = required_args.split('|')
-        if not validate_args(args, required_args):
+        if not validate_args(kwargs, required_args):
             raise RuntimeError('Request arguments is not valid!')
         callback = module.__dict__.get(func_name)
+        print ("callback:\t", callback)
         if callback is None:
             raise RuntimeError('No callback function found for routing_key: %s.' % \
                         routing_key)
         elif not callable(callback):
             raise TypeError
-        return callback(args)
+        return callback(**kwargs)

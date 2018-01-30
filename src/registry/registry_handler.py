@@ -8,9 +8,5 @@ class RemoteServiceHandler:
         assert isinstance(payload, dict)
         routing_key = payload['header']['routing_key']
         request_method = payload['header']['request_method']
-        args = payload['body']
-        return RegistryRouter.dispatch(routing_key, request_method, args)
-
-class ClientRequestHandler:
-    pass
-        
+        kwargs = payload['body']
+        return RegistryRouter.dispatch(routing_key, request_method, **kwargs)
