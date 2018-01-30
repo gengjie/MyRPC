@@ -32,7 +32,6 @@ def base_request(endpoint, data):
     '''
     Base request framwork with default transport layer and encoder/decoder.
     '''
-    print (endpoint)
     assert isinstance(endpoint, tuple)
     proto, (ip, port) = endpoint
     if proto == 'tcp':

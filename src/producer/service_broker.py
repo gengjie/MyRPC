@@ -1,6 +1,7 @@
 #! /usr/bin/python
 import threading
 import inspect
+from functools import wraps
 
 import sys
 sys.path.append('..')
@@ -93,13 +94,19 @@ class ServiceContainer:
             callback = si_members.get(func_name)
             if callback is None:
                 raise MethodNotFound()
-            elif not callable(callback):
+            elif callable(callback):
                 return service_instance, callback
             raise TypeError
         else:
             raise RuntimeError('No service instance found for %s.' % service_name)
 
 service_container = ServiceContainer()
+
+def decorator(func):
+    @wraps(func)
+    def entry_point(*args, **kwargs):
+        return func(*args, **kwargs)
+    return entry_point
 
 class ServiceBroker:
     '''
@@ -127,13 +134,12 @@ class ServiceBroker:
 
     def publish(self, service_cls, method):
         assert inspect.isclass(service_cls)
-        service_name = service_cls.__dict__.get('name')
+        self.service_name = service_cls.__dict__.get('name')
+        self.method_name = method.__name__
         service_instance = service_cls()
-        print ('----->service_instance:\t', service_instance)
-        print (service_instance == None)
-        print (method)
-        service_container.add_service(service_name, service_instance, method)
-        self.__register(service_name, method.__name__)
+        method = decorator(method)
+        service_container.add_service(self.service_name, service_instance, method)
+        self.__register(self.service_name, self.method_name)
         self.__expose_service()
 
     def __register(self, service_name, method_name):
@@ -150,9 +156,12 @@ class ServiceBroker:
             "method_name" : method_name
         }
         rst = self.__post_request(routing_key, body)
+        print ('register service - %s into registry center...' % service_name)
 
 
     def  __expose_service(self):
+        print ('publish remote method - %s for service - %s on port - %d' % (self.method_name, \
+                    self.service_name, int(self.broker_port)))
         self.acceptor = Bio_Acceptor(self.broker_port)
         self.acceptor.set_defaults()
         self.acceptor.request_handler = _ClientRequestHandler.handle_request_data
@@ -176,7 +185,6 @@ class ServiceBroker:
         assert isinstance(reply_msg, dict)
         status = reply_msg['status']
         message = reply_msg['result']
-        print (message)
         return status >= 0
 
 class _ClientRequestHandler(object):
@@ -195,23 +203,22 @@ class _ClientRequestHandler(object):
         }
         '''
         try:
-            print ('payload:', payload)
             service_name = payload['service_name']
             method_name = payload['method_name']
             call_args = payload['call_args']
             service_instance, callback = service_container.lookup_serv(\
                 service_name, method_name)
-            print ('-' * 10)
-            print (service_instance, callback)
             args = call_args['args']
             kwargs = call_args['kwargs']
+            _ClientRequestHandler.__check_signature(service_instance, \
+                callback, *args, **kwargs)
             return _ClientRequestHandler.__reply_call_result(callback, \
-                    service_instance, args, kwargs)
+                    service_instance, *args, **kwargs)
         except BaseException as exc:
             return _ClientRequestHandler.__reply_call_failure(exc)
 
     @staticmethod
-    def __check_signature(service_instance, fn, args, kwargs):
+    def __check_signature(service_instance, fn, *args, **kwargs):
         try:
             inspect.getcallargs(fn, service_instance, *args, **kwargs)
         except TypeError as exc:
@@ -223,15 +230,29 @@ class _ClientRequestHandler(object):
 
     @staticmethod
     def __reply_call_result(fn, instance, *args, **kwargs):
-        return fn(instance, args, kwargs)
+        return fn(instance, *args, **kwargs)
 
+
+
+class Student:
+
+    def __init__(self, name, age, desc):
+        self.name = name
+        self.age = age
+        self.desc = desc
 
 
 class HelloService:
     name = "hello_service"
 
-    def say_hello(self, _s):
-        print (_s)
+    def say_hello(self, _s, _k):
+        print (_k)
+        ret = []
+        ret.append(_s)
+        ret.append(_k)
+        stu = Student(_s, _k, "oh shit!!!")
+        # return "Hello, " + _s + " " + str(_k)
+        return stu
 
 
 if __name__ == '__main__':

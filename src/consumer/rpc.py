@@ -87,11 +87,14 @@ class MethodProxy(object):
 
 
     def __call__(self, *args, **kwargs):
-        print (args)
-        print (kwargs)
-        print (self.broker_endpoint)
         return rpc_call_request(self.broker_endpoint, self.service_name, \
                 self.method_name, args, kwargs)
 
+import datetime
+
 rpc = RpcProxy(config={"registry_uri":"tcp://localhost:9999"})
-print (rpc.hello_service.say_hello('shit'))
+
+start = datetime.datetime.now()
+print (rpc.hello_service.say_hello('shit', 8))
+end = datetime.datetime.now()
+print (end-start)

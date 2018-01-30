@@ -101,17 +101,18 @@ class RegistryCenter(object):
     def __init__(self, tcp_port):
         RegistryRouter.init_routers()
         self.acceptor = Bio_Acceptor(tcp_port)
+        self.tcp_port = tcp_port
         self.acceptor.set_defaults()
         self.acceptor.request_handler = RemoteServiceHandler.handle_request_data
 
     def serve_forever(self):
+        ''' used to start service for registry center '''
+        print ("service registry is booting and listening port %d..." % int(self.tcp_port))
         self.acceptor.serve_forever()
 
 
 def main():
     registry_center = RegistryCenter(9999)
-    import time
-    time.sleep(2)
     registry_center.serve_forever()
 
 if __name__=='__main__':
