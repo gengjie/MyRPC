@@ -93,7 +93,7 @@ class ServiceContainer:
             callback = si_members.get(func_name)
             if callback is None:
                 raise MethodNotFound()
-            elif not callable(callback):
+            elif callable(callback):
                 return service_instance, callback
             raise TypeError
         else:
@@ -176,7 +176,6 @@ class ServiceBroker:
         assert isinstance(reply_msg, dict)
         status = reply_msg['status']
         message = reply_msg['result']
-        print (message)
         return status >= 0
 
 class _ClientRequestHandler(object):
@@ -201,8 +200,6 @@ class _ClientRequestHandler(object):
             call_args = payload['call_args']
             service_instance, callback = service_container.lookup_serv(\
                 service_name, method_name)
-            print ('-' * 10)
-            print (service_instance, callback)
             args = call_args['args']
             kwargs = call_args['kwargs']
             return _ClientRequestHandler.__reply_call_result(callback, \
@@ -223,7 +220,14 @@ class _ClientRequestHandler(object):
 
     @staticmethod
     def __reply_call_result(fn, instance, *args, **kwargs):
-        return fn(instance, args, kwargs)
+        if args and kwargs:
+            return fn(instance, args, kwargs)
+        elif not args and kwargs:
+            return fn(instance, kwargs)
+        elif not kwargs and args:
+            return fn(instance, args)
+        else:
+            return fn(instance)
 
 
 
@@ -231,7 +235,7 @@ class HelloService:
     name = "hello_service"
 
     def say_hello(self, _s):
-        print (_s)
+        return "Hello, " + _s
 
 
 if __name__ == '__main__':

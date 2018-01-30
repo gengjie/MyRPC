@@ -87,9 +87,6 @@ class MethodProxy(object):
 
 
     def __call__(self, *args, **kwargs):
-        print (args)
-        print (kwargs)
-        print (self.broker_endpoint)
         return rpc_call_request(self.broker_endpoint, self.service_name, \
                 self.method_name, args, kwargs)
 

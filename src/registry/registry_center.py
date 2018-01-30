@@ -110,8 +110,6 @@ class RegistryCenter(object):
 
 def main():
     registry_center = RegistryCenter(9999)
-    import time
-    time.sleep(2)
     registry_center.serve_forever()
 
 if __name__=='__main__':
